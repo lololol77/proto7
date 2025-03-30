@@ -5,7 +5,7 @@ import sqlite3
 
 # DB 연결 함수
 def connect_job_seekers_db():
-    db_path = '/mnt/data/job_seekers.db'  # DB 파일 경로
+    db_path = 'job_seekers.db'  # DB 파일 경로
     conn = sqlite3.connect(db_path)
     return conn
 
