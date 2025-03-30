@@ -79,7 +79,7 @@ def match_jobs(job_title, abilities_required, disability_type):
 
 # 구직자 매칭 및 순위 정렬
 def get_sorted_matching_job_seekers(job_title, abilities_required, disability_type):
-    conn = sqlite3.connect("/mnt/data/job_matching.db")  # DB 파일 경로
+    conn = sqlite3.connect("ㅓob_matching.db")  # DB 파일 경로
     cursor = conn.cursor()
     
     # 구직자들의 점수를 계산하고 리스트에 저장
