@@ -1,38 +1,15 @@
 import sqlite3
 import streamlit as st
 
-import sqlite3
-
-# DB 연결 함수
-def connect_job_seekers_db():
-    db_path = 'job_seekers.db'  # DB 파일 경로
-    conn = sqlite3.connect(db_path)
+# DB 연결 함수 (업로드된 DB 파일 사용)
+def connect_db():
+    db_path = '/mnt/data/job_matching.db'  # DB 파일 경로
+    conn = sqlite3.connect(db_path)  # DB 파일 경로로 연결
     return conn
-
-# 구직자 정보를 저장할 테이블 생성
-def create_job_seekers_table():
-    conn = connect_job_seekers_db()
-    cursor = conn.cursor()
-
-    # job_seekers 테이블 생성 (빈 테이블)
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS job_seekers (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            disability TEXT,
-            severity TEXT
-        )
-    ''')
-
-    conn.commit()
-    conn.close()
-
-# 테이블 생성
-create_job_seekers_table()
 
 # 구직자 정보를 DB에 저장하는 함수
 def save_job_seeker(name, disability, severity):
-    conn = connect_job_seekers_db()  # DB 연결
+    conn = connect_db()  # DB 연결
     cursor = conn.cursor()
     
     # 구직자 정보 'job_seekers' 테이블에 저장
@@ -41,23 +18,95 @@ def save_job_seeker(name, disability, severity):
     conn.commit()  # 변경 사항 커밋
     conn.close()   # DB 연결 종료
 
-# 테이블 구조 확인 함수
-def check_job_seekers_table():
-    conn = connect_job_seekers_db()
+# 구인자가 원하는 직무 정보와 능력 목록을 DB에 저장하는 함수
+def save_job_posting(job_title, abilities_required):
+    conn = connect_db()
     cursor = conn.cursor()
-
-    # 'job_seekers' 테이블의 구조 확인
-    cursor.execute("PRAGMA table_info(job_seekers);")
-    columns = cursor.fetchall()
-    print("job_seekers 테이블 컬럼:")
-    for column in columns:
-        print(column)
-
+    
+    # job_postings 테이블에 구인자 정보 저장
+    cursor.execute("INSERT INTO job_postings (job_title, abilities) VALUES (?, ?)", (job_title, ", ".join(abilities_required)))
+    
+    # 구인자가 원하는 능력도 'abilities' 테이블에 저장
+    for ability in abilities_required:
+        cursor.execute("INSERT OR IGNORE INTO abilities (name) VALUES (?)", (ability,))
+    
+    conn.commit()
     conn.close()
 
-# 테이블 생성 및 확인
-create_job_seekers_table()  # 테이블 생성
-check_job_seekers_table()   # 테이블 구조 확인
+# 매칭 점수 계산
+def match_jobs(job_title, abilities_required, disability_type):
+    conn = connect_db()
+    cursor = conn.cursor()
+    
+    # 구직자의 장애유형에 맞는 점수 확인
+    matching_scores = []
+    
+    # 구인자가 요구하는 능력과 매칭 점수 계산
+    for ability in abilities_required:
+        # 능력 ID 얻기
+        cursor.execute("SELECT ability_id FROM abilities WHERE name=?", (ability,))
+        ability_id = cursor.fetchone()
+        
+        if ability_id is None:
+            continue  # 능력 ID가 없다면 넘어감
+        
+        # 구직자의 장애유형에 맞는 점수 얻기
+        cursor.execute("""
+            SELECT suitability 
+            FROM matching 
+            WHERE disability_id=(SELECT disability_id FROM disabilities WHERE name=?) 
+            AND ability_id=?
+        """, (disability_type, ability_id[0]))
+        
+        suitability = cursor.fetchone()
+        if suitability:
+            suitability = suitability[0]
+        else:
+            suitability = 0  # 매칭되지 않으면 0으로 처리
+        
+        matching_scores.append(suitability)
+    
+    # 만약 0점이 있으면 부적합으로 분류
+    if 0 in matching_scores:
+        return "부적합"
+    
+    # 모두 1 또는 2 점일 경우 점수를 합산
+    total_score = sum(matching_scores)
+    
+    conn.close()
+    
+    return total_score
+
+# 구직자 매칭 및 순위 정렬
+def get_sorted_matching_jobs(abilities_required, disability_type):
+    conn = sqlite3.connect("/mnt/data/job_matching.db")  # DB 파일 경로
+    cursor = conn.cursor()
+    
+    # 구인자가 원하는 능력에 맞는 구직자 매칭 처리
+    matching_results = []
+    unqualified_results = []
+
+    cursor.execute("SELECT job_title, abilities FROM job_postings")
+    job_postings = cursor.fetchall()
+
+    for job_posting in job_postings:
+        job_title = job_posting[0]
+        abilities = job_posting[1].split(", ")
+
+        # 매칭 점수 계산
+        total_score = match_jobs(job_title, abilities_required, disability_type)
+        
+        if total_score == "부적합":
+            unqualified_results.append((job_title, "적합하지 않음"))
+        else:
+            matching_results.append((job_title, total_score))
+    
+    # 점수를 기준으로 적합한 일자리 내림차순 정렬
+    matching_results.sort(key=lambda x: x[1], reverse=True)
+
+    conn.close()
+    
+    return matching_results, unqualified_results
 
 # Streamlit UI 예시
 st.title("장애인 일자리 매칭 시스템")
@@ -74,6 +123,21 @@ if role == "구직자":
         save_job_seeker(name, disability, severity)
         
         st.write(f"구직자 정보가 저장되었습니다: {name}, {disability}, {severity}")
+        
+        # 구인자가 원하는 직무와 능력 입력받기
+        job_title = st.text_input("구인자 직무명 입력")
+        abilities_required = st.multiselect("구인자가 원하는 능력", ["주의력", "아이디어 발상 및 논리적 사고", "기억력", "지각능력", "수리능력", "공간능력", "언어능력", "지구력", "유연성 · 균형 및 조정", "체력", "움직임 통제능력", "정밀한 조작능력", "반응시간 및 속도", "청각 및 언어능력", "시각능력"])
+
+        # 매칭 결과 출력
+        matching_results, unqualified_results = get_sorted_matching_jobs(abilities_required, disability)
+
+        st.write("### 적합한 일자리 목록:")
+        for job_title, score in matching_results:
+            st.write(f"- {job_title}: {score}점")
+        
+        st.write("### 비적합한 일자리 목록:")
+        for job_title, status in unqualified_results:
+            st.write(f"- {job_title}: {status}")
 
 elif role == "구인자":
     job_title = st.text_input("일자리 제목 입력")
