@@ -1,10 +1,10 @@
 import sqlite3
 import streamlit as st
 
-# DB 연결 함수 (업로드된 DB 파일 사용)
+# DB 연결 함수 (정확한 경로로 연결)
 def connect_db():
-    db_path = 'job_seekers.db'  # 업로드된 DB 파일 경로
-    conn = sqlite3.connect(db_path)  # DB 파일 경로로 연결
+    db_path = 'job_matching.db'  # job_matching.db 파일 경로
+    conn = sqlite3.connect(db_path)
     return conn
 
 # 구직자 정보를 DB에 저장하는 함수
@@ -23,7 +23,7 @@ def save_job_posting(job_title, abilities_required):
     conn = connect_db()
     cursor = conn.cursor()
     
-    # 일자리 제목을 'job_postings' 테이블에 저장
+    # job_postings 테이블에 구인자 정보 저장
     cursor.execute("INSERT INTO job_postings (job_title, abilities) VALUES (?, ?)", (job_title, ", ".join(abilities_required)))
     
     # 구인자가 원하는 능력도 'abilities' 테이블에 저장
@@ -79,28 +79,28 @@ def match_jobs(job_title, abilities_required, disability_type):
 
 # 구직자 매칭 및 순위 정렬
 def get_sorted_matching_job_seekers(job_title, abilities_required, disability_type):
-    conn = sqlite3.connect("ㅓob_matching.db")  # DB 파일 경로
+    conn = sqlite3.connect("job_matching.db")  # DB 파일 경로
     cursor = conn.cursor()
     
-    # 구직자들의 점수를 계산하고 리스트에 저장
-    cursor.execute("SELECT name, disability_id FROM job_seekers")
-    job_seekers = cursor.fetchall()
-    
+    # 구인자가 원하는 능력에 맞는 구직자 매칭 처리
     matching_results = []
-    
-    for job_seeker in job_seekers:
-        name = job_seeker[0]
-        disability_id = job_seeker[1]
+    for ability in abilities_required:
+        cursor.execute("SELECT name, disability_id FROM job_seekers")
+        job_seekers = cursor.fetchall()
         
-        # 장애유형을 통해 장애유형 이름 가져오기
-        cursor.execute("SELECT name FROM disabilities WHERE disability_id=?", (disability_id,))
-        disability_name = cursor.fetchone()[0]
-        
-        # 매칭 점수 계산
-        total_score = match_jobs(job_title, abilities_required, disability_name)
-        
-        if total_score != "부적합":
-            matching_results.append((name, total_score))
+        for job_seeker in job_seekers:
+            name = job_seeker[0]
+            disability_id = job_seeker[1]
+            
+            # 장애유형을 통해 장애유형 이름 가져오기
+            cursor.execute("SELECT name FROM disabilities WHERE disability_id=?", (disability_id,))
+            disability_name = cursor.fetchone()[0]
+            
+            # 매칭 점수 계산
+            total_score = match_jobs(job_title, abilities_required, disability_name)
+            
+            if total_score != "부적합":
+                matching_results.append((name, total_score))
     
     # 점수를 기준으로 정렬 (내림차순)
     matching_results.sort(key=lambda x: x[1], reverse=True)
