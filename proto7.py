@@ -1,13 +1,15 @@
 import sqlite3
 import streamlit as st
 
-# DB 연결 함수 (업로드된 DB 파일 사용)
+import sqlite3
+
+# DB 연결 함수
 def connect_job_seekers_db():
     db_path = '/mnt/data/job_seekers.db'  # DB 파일 경로
-    conn = sqlite3.connect(db_path)  # DB 파일 경로로 연결
+    conn = sqlite3.connect(db_path)
     return conn
 
-# 구직자 정보를 저장할 테이블 생성 (테이블 구조 확인 후 생성)
+# 구직자 정보를 저장할 테이블 생성
 def create_job_seekers_table():
     conn = connect_job_seekers_db()
     cursor = conn.cursor()
@@ -24,6 +26,9 @@ def create_job_seekers_table():
 
     conn.commit()
     conn.close()
+
+# 테이블 생성
+create_job_seekers_table()
 
 # 구직자 정보를 DB에 저장하는 함수
 def save_job_seeker(name, disability, severity):
