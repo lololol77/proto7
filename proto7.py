@@ -1,4 +1,4 @@
-    import sqlite3
+import sqlite3
 import streamlit as st
 
 # DB 연결 함수
