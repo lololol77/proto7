@@ -1,9 +1,9 @@
-import sqlite3
+    import sqlite3
 import streamlit as st
 
 # DB 연결 함수
 def connect_db():
-    db_path = 'job_matching.db'  # DB 파일 경로
+    db_path = '/mnt/data/job_matching.db'  # DB 파일 경로
     conn = sqlite3.connect(db_path)
     return conn
 
@@ -79,7 +79,7 @@ def match_jobs(job_title, abilities_required, disability_type):
 
 # 구직자 매칭 및 순위 정렬
 def get_sorted_matching_job_seekers(job_title, abilities_required, disability_type):
-    conn = sqlite3.connect("job_matching.db")  # DB 파일 경로
+    conn = sqlite3.connect("/mnt/data/job_matching.db")  # DB 파일 경로
     cursor = conn.cursor()
     
     # 구직자들의 점수를 계산하고 리스트에 저장
@@ -123,10 +123,13 @@ if role == "구직자":
         # 구직자 정보 저장
         save_job_seeker(name, disability, severity)
         
+        st.write(f"구직자 정보가 저장되었습니다: {name}, {disability}, {severity}")
+        
         # 구인자가 원하는 직무와 능력 입력받기
         job_title = st.text_input("구인자 직무명 입력")
         abilities_required = st.multiselect("구인자가 원하는 능력", ["주의력", "아이디어 발상 및 논리적 사고", "기억력", "지각능력", "수리능력", "공간능력", "언어능력", "지구력", "유연성 · 균형 및 조정", "체력", "움직임 통제능력", "정밀한 조작능력", "반응시간 및 속도", "청각 및 언어능력", "시각능력"])
 
+        # 매칭 결과 출력
         result = get_sorted_matching_job_seekers(job_title, abilities_required, disability)
         
         if result:
