@@ -3,7 +3,7 @@ import streamlit as st
 
 # DB 연결 함수
 def connect_db():
-    conn = sqlite3.connect("/mnt/data/job_matching.db")  # DB 파일 경로
+    conn = sqlite3.connect("job_matching.db")  # DB 파일 경로
     return conn
 
 # 구인자가 원하는 능력 목록을 DB에 저장하는 함수
@@ -67,7 +67,7 @@ def match_jobs(job_title, abilities_required, disability_type):
 
 # 구직자 매칭 및 순위 정렬
 def get_sorted_matching_job_seekers(job_title, abilities_required, disability_type):
-    conn = sqlite3.connect("/mnt/data/job_matching.db")
+    conn = sqlite3.connect("job_matching.db")
     cursor = conn.cursor()
     
     # 구직자들의 점수를 계산하고 리스트에 저장
